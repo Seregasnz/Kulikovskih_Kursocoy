@@ -1,0 +1,138 @@
+        private void SaveInfoAboutSelectedItem_click(object sender, RoutedEventArgs e)
+        {
+            bool file_contain = false;
+
+            foreach (var file in new DirectoryInfo(Environment.CurrentDirectory + @"\src\").GetFiles())
+            {
+                if (file.Name == "file.xlsx")
+                {
+                    file_contain = true;
+                    break;
+                }
+            }
+
+            if (file_contain)
+            {
+                try //В этом блоке try скачаем картинку по ссылке
+                {
+                    using (WebClient wc = new WebClient())
+                    {
+                        wc.DownloadFile(items_of_current_page[current_page][current_item][3], Environment.CurrentDirectory + @"\src\img.jpg");
+                    }
+                }
+                catch
+                {
+                    MessageBox.Show("Ошибка, повторите позже");
+                    return;
+                }
+
+                //Открываем Excel документ
+                Excel.Application ExcelApp = new Excel.Application();
+                ExcelApp.Visible = false;
+
+                bool failed = false;
+                do
+                {
+                    try
+                    {
+                        Excel.Workbook Workbook = ExcelApp.Workbooks.Open(Environment.CurrentDirectory + @"\src\file.xlsx");
+                        Excel.Worksheet worksheet = Workbook.ActiveSheet;
+
+                        Excel.Range last = worksheet.Cells.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing); //Получаем последний элемент в виде строка, столбец
+
+                        int row = last.Row == 1 ? last.Row + 1 : last.Row + 6; //Считаем последнюю строку (заполненную) и переходим к следующей
+                        int margin_top = 20 + (row / 6 * 90); //Формула для подсчета отсупа сверху для картинки
+
+                        worksheet.Shapes.AddPicture(Environment.CurrentDirectory + @"\src\img.jpg", MsoTriState.msoFalse, MsoTriState.msoCTrue, 0, margin_top, 120, 80); //Добавляем картинку
+
+                        //Проходим по каждому из столбцов (a, b, c, d), объединяем ячейки и заполняем их данными
+                        foreach (var let in new List<string>() { "A", "B", "C", "D" })
+                        {
+                            Excel.Range range = worksheet.get_Range($"{let}{row}", $"{let}{row + 5}").Cells;
+                            range.Merge(Type.Missing);
+
+                            switch (let)
+                            {
+                                case "B":
+                                    worksheet.Cells[row, 2] = items_of_current_page[current_page][current_item][0];
+                                    break;
+                                case "C":
+                                    worksheet.Cells[row, 3] = items_of_current_page[current_page][current_item][1];
+                                    break;
+                                case "D":
+                                    range.Formula = $@"=HYPERLINK(""{items_of_current_page[current_page][current_item][2]}"")";
+                                    break;
+                            }
+                        }
+
+                        //Сохраняем информацию в документе и закрываем его
+                        Workbook.Save();
+                        Workbook.Close(true);
+                        ExcelApp.Quit();
+
+                        MessageBox.Show("Информация сохранена");
+                        File.Delete(Environment.CurrentDirectory + @"\src\img.jpg");
+                        failed = false;
+                    }
+                    catch (System.Runtime.InteropServices.COMException)
+                    {
+                        failed = true;
+                    }
+                    System.Threading.Thread.Sleep(10);
+                } while (failed);
+            }
+            else
+            {
+                //Создадим новый объект Excel.Application
+                Excel.Application ExcelApp = new Excel.Application();
+                ExcelApp.Visible = false;
+
+                object empty = System.Reflection.Missing.Value; //Специальный объект в виде никакущего значения, нужен для заполнения некоторых параметров при сохранении Excel документа
+
+                bool failed = false;
+                do
+                {
+                    try
+                    {
+                        Excel.Workbook Workbook = ExcelApp.Workbooks.Add(empty);
+                        Excel.Worksheet worksheet = Workbook.ActiveSheet;
+
+                        worksheet.Cells[1, 1] = "Изображение";
+                        worksheet.Cells[1, 2] = "Название";
+                        worksheet.Cells[1, 3] = "Цена";
+                        worksheet.Cells[1, 4] = "Ссылка";
+
+                        //Создадим словарь длин ячеек
+                        Dictionary<string, int> column_widths = new Dictionary<string, int>()
+                        {
+                            {"A", 23},
+                            {"B", 35},
+                            {"C", 15},
+                            {"D", 65},
+                        };
+
+                        //Пройдёмся по каждой из букв столбцов и поменяем некоторые параметры (ширину ячейки и выравнивание)
+                        foreach (var let in new List<string>() { "A", "B", "C", "D" })
+                        {
+                            Excel.Range range = worksheet.Columns[let];
+                            range.ColumnWidth = column_widths[let];
+                            range.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                            range.VerticalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                        }
+
+                        //Сохраним Excel документ и выйдем
+                        Workbook.SaveAs(Environment.CurrentDirectory + @"\src\file.xlsx", Excel.XlFileFormat.xlOpenXMLWorkbook, empty, empty, empty, empty, Excel.XlSaveAsAccessMode.xlExclusive, empty, empty, empty, empty, empty);
+                        Workbook.Close(true);
+                        ExcelApp.Quit();
+
+                        MessageBox.Show($"Файл для сохранения создан успешно по пути:\n{Environment.CurrentDirectory + @"\src\file.xlsx"}\nДля сохранения нажмите ещё раз");
+                        failed = false;
+                    }
+                    catch (System.Runtime.InteropServices.COMException)
+                    {
+                        failed = true;
+                    }
+                    System.Threading.Thread.Sleep(10);
+                } while (failed);
+            }
+        }

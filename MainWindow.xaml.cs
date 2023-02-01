@@ -369,7 +369,7 @@ namespace main
                         Workbook.Close(true);
                         ExcelApp.Quit();
 
-                        MessageBox.Show("Информация сохранена");
+                        MessageBox.Show("Информация сохранена!!!");
                         File.Delete(Environment.CurrentDirectory + @"\src\img.jpg");
 
                         retry = false;
